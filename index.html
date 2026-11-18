@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#100708">
+  <title>VEXARIUM SOFT BOT</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root{color-scheme:dark;--bg:#100708;--panel:#1b0d10;--line:#68232c;--red:#c32636;--muted:#c2abad}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -10%,#55121b 0,transparent 48%),var(--bg);color:#fff;font:15px/1.45 Arial,sans-serif}
+    header{text-align:center;padding:28px 18px 20px;border-bottom:1px solid #552027}.logo{font-size:11px;letter-spacing:6px;color:#ff7c86}.hero{font-size:29px;font-weight:900;letter-spacing:1px;margin:9px 0 3px}.sub{font-size:13px;color:var(--muted)}
+    main{max-width:650px;margin:auto;padding:20px 15px 42px}.heading{font-size:19px;font-weight:800;margin:4px 0 14px}.products{display:grid;gap:13px}
+    .product,.cart{background:linear-gradient(145deg,#251115,#160b0d);border:1px solid var(--line);border-radius:16px;padding:17px;box-shadow:0 8px 26px #0005}
+    .product h3{margin:0 0 7px;font-size:17px}.product p{margin:0;color:var(--muted);font-size:13px;min-height:36px}
+    .bottom{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px}.price{font-weight:800;color:#ff858d}
+    button{border:0;border-radius:10px;padding:11px 16px;background:linear-gradient(135deg,#d52b3a,#821522);color:#fff;font-weight:800;font-size:14px}
+    button:disabled{opacity:.55}.cart{margin-top:20px}.cartline{display:flex;justify-content:space-between;gap:12px;margin:9px 0;color:var(--muted)}.total{font-size:18px;font-weight:800;color:#fff}
+    .pay{width:100%;padding:14px;margin-top:10px}.status{min-height:20px;margin-top:11px;color:#ff9ba2;font-size:13px}.hint{text-align:center;color:var(--muted);font-size:11px;margin:16px 4px 0}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">V E X A R I U M</div>
+    <div class="hero">SOFT BOT</div>
+    <div class="sub">Цифровой магазин · Telegram Stars</div>
+  </header>
+  <main>
+    <div class="heading">Каталог</div>
+    <div class="products" id="products">
+      <article class="product"><h3>Цифровой продукт №1</h3><p>Цифровой материал или услуга.</p><div class="bottom"><span class="price">150 ⭐</span><button onclick="addToCart('digital_a')">Добавить</button></div></article>
+      <article class="product"><h3>Цифровой продукт №2</h3><p>Полезный цифровой материал или услуга.</p><div class="bottom"><span class="price">150 ⭐</span><button onclick="addToCart('digital_b')">Добавить</button></div></article>
+      <article class="product"><h3>Цифровой продукт №3</h3><p>Дополнительный цифровой продукт или услуга.</p><div class="bottom"><span class="price">150 ⭐</span><button onclick="addToCart('digital_c')">Добавить</button></div></article>
+    </div>
+    <section class="cart">
+      <div class="heading">Корзина</div>
+      <div id="cart-items" class="cartline">Пока ничего не выбрано</div>
+      <div class="cartline total"><span>Итого</span><span id="total">0 ⭐</span></div>
+      <button id="pay-button" class="pay" onclick="checkout()">Перейти к оплате</button>
+      <div id="status" class="status" role="status"></div>
+    </section>
+    <div class="hint">Оплата доступна после открытия магазина внутри Telegram. Покупайте только законные цифровые товары и услуги.</div>
+  </main>
+<script>
+  // ВАЖНО: после публикации Worker вставьте сюда его полный адрес, например https://имя-worker.аккаунт.workers.dev
+  const API_BASE = "https://vexarium-soft-bot.longyxs222.workers.dev";
+  const tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) { tg.ready(); tg.expand(); }
+
+  const products = [
+    {id:"digital_a", title:"Цифровой продукт №1", price:150},
+    {id:"digital_b", title:"Цифровой продукт №2", price:150},
+    {id:"digital_c", title:"Цифровой продукт №3", price:150}
+  ];
+  let cart = [];
+
+  function addToCart(id) {
+    if (!cart.includes(id)) cart.push(id);
+    renderCart();
+  }
+  function renderCart() {
+    const selected = cart.map(id => products.find(p => p.id === id)).filter(Boolean);
+    document.getElementById("cart-items").textContent =
+      selected.length ? selected.map(p => p.title).join(", ") : "Пока ничего не выбрано";
+    document.getElementById("total").textContent =
+      selected.reduce((sum,p) => sum + p.price, 0) + " ⭐";
+  }
+  async function checkout() {
+    const status = document.getElementById("status");
+    const button = document.getElementById("pay-button");
+    if (!cart.length) { status.textContent = "Сначала добавьте товар в корзину."; return; }
+    if (!tg || !tg.initData) { status.textContent = "Откройте магазин через Telegram-бота."; return; }
+    if (API_BASE.includes("PASTE_YOUR_WORKER_URL_HERE")) {
+      status.textContent = "Сначала нужно указать адрес вашего Worker в коде сайта.";
+      return;
+    }
+    button.disabled = true;
+    status.textContent = "Создаём счёт…";
+    try {
+      const response = await fetch(API_BASE.replace(/\/$/,"") + "/api/invoice", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({initData:tg.initData, productIds:cart})
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Не удалось создать счёт.");
+      tg.openInvoice(data.invoiceLink, (state) => {
+        if (state === "paid") { status.textContent = "Оплата прошла успешно!"; cart = []; renderCart(); }
+        else if (state === "failed") status.textContent = "Оплата не прошла. Попробуйте ещё раз.";
+        else if (state === "cancelled") status.textContent = "Оплата отменена.";
+      });
+    } catch (error) {
+      status.textContent = error.message || "Ошибка соединения с магазином.";
+    } finally {
+      button.disabled = false;
+    }
+  }
+  renderCart();
+</script>
+</body>
+</html>
